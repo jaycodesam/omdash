@@ -13,17 +13,18 @@ export const baseQuery: BaseQueryFn<
     const { error } = result;
     if (isUnexpectedError(error)) {
       const message = getUnexpectedErrorMessage(error);
+      const endpoint = typeof args === 'string' ? args : args.url;
 
-      // TODO:
-      console.error('[API Error]', {
-        status: error.status,
-        message,
-        endpoint: typeof args === 'string' ? args : args.url,
-        error,
-      });
+      // Log error details
+      console.group('[API Error]');
+      console.error('Status:', error.status);
+      console.error('Message:', message);
+      console.error('Endpoint:', endpoint);
+      console.error('Error Data:', error.data);
+      console.error('Full Error:', error);
+      console.groupEnd();
 
       // TODO: toast here
-      // TODO:
       console.log('[Toast]', message);
     }
 
