@@ -20,6 +20,8 @@ const getOrders = http.get("/api/orders", ({ request }) => {
   const limit = Number(url.searchParams.get('limit')) || 20;
   const direction = url.searchParams.get('direction') || 'after'; // 'after' or 'before'
 
+  console.log('[MSW] GET /api/orders', { cursor, limit, direction });
+
   // filters
   const filters = {
     status: url.searchParams.get('status') || undefined,
@@ -40,10 +42,13 @@ const getOrders = http.get("/api/orders", ({ request }) => {
   // cursor position
   let startIndex = 0;
   if (cursor) {
+    console.log('[MSW] Finding cursor in filtered results:', cursor);
     const cursorIndex = filtered.findIndex((order) => order.id === cursor);
+    console.log('[MSW] Cursor index:', cursorIndex, 'Total filtered:', filtered.length);
 
     if (cursorIndex === -1) {
       // invalid or filtered out
+      console.error('[MSW] Invalid cursor:', cursor);
       return HttpResponse.json(
         { error: "Invalid cursor" },
         { status: 400 }
@@ -57,6 +62,7 @@ const getOrders = http.get("/api/orders", ({ request }) => {
       // items before cursor (backwards)
       startIndex = Math.max(0, cursorIndex - limit);
     }
+    console.log('[MSW] Start index:', startIndex);
   }
 
   // paginated data
@@ -90,13 +96,14 @@ const getOrders = http.get("/api/orders", ({ request }) => {
   const validationResult = ordersArraySchema.safeParse(paginatedData);
 
   if (!validationResult.success) {
-    console.error("Mock data validation failed:", validationResult.error);
+    console.error("[MSW] Mock data validation failed:", validationResult.error);
     return HttpResponse.json(
       { error: "Invalid orders data", details: validationResult.error.format() },
       { status: 500 }
     );
   }
-  return HttpResponse.json({
+
+  const response = {
     data: validationResult.data,
     pageInfo: {
       hasNextPage,
@@ -108,7 +115,15 @@ const getOrders = http.get("/api/orders", ({ request }) => {
       next: nextCursor,
       previous: previousCursor,
     },
+  };
+
+  console.log('[MSW] Returning response:', {
+    dataCount: response.data.length,
+    pageInfo: response.pageInfo,
+    cursors: response.cursors,
   });
+
+  return HttpResponse.json(response);
 });
 
 // GET /api/orders/:id

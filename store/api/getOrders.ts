@@ -7,12 +7,17 @@ const getOrdersEndpoint = orderApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
     getOrders: builder.query<GetOrdersResponse, GetOrdersParams | void>({
-      query: (params) => ({
-        url: '/orders',
-        params: params || {},
-      }),
+      query: (params) => {
+        console.log('[RTK Query] Request params:', params);
+        return {
+          url: '/orders',
+          params: params || {},
+        };
+      },
 
       transformResponse: (response: unknown) => {
+        console.log('[RTK Query] Raw response:', response);
+
         // structure validation
         if (
           !response ||
@@ -20,7 +25,7 @@ const getOrdersEndpoint = orderApi.injectEndpoints({
           !('data' in response) ||
           !Array.isArray((response as any).data)
         ) {
-          console.error('Invalid API response structure:', response);
+          console.error('[RTK Query] Invalid API response structure:', response);
           throw new Error('Invalid response structure from API');
         }
 
