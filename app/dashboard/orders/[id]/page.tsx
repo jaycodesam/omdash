@@ -1,7 +1,7 @@
 'use client';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, Badge, Button } from '@/components/ui';
+import { Card, Button } from '@/components/ui';
 import { OrderCalculation } from '@/components/OrderCalculation';
 import { OrderStatusHistory } from '@/components/OrderStatusHistory';
 import { CustomerDetails } from '@/components/CustomerDetails';
@@ -9,50 +9,7 @@ import { UpdateOrderStatus } from '@/components/UpdateOrderStatus';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useGetOrderByIdQuery } from '@/store/api';
-
-// Mock data - DEPRECATED: Now using RTK Query
-const mockOrderData = {
-  'ORD-1234': {
-    id: 'ORD-1234',
-    customer: {
-      name: 'John Doe',
-      email: 'john@example.com',
-      phone: '+1 (555) 123-4567',
-      address: '123 Main St, New York, NY 10001',
-    },
-    items: [
-      { productName: 'Wireless Headphones', quantity: 2, unitPrice: 89.99 },
-      { productName: 'USB-C Cable', quantity: 3, unitPrice: 12.50 },
-      { productName: 'Phone Case', quantity: 1, unitPrice: 24.99 },
-    ],
-    status: 'delivered',
-    statusHistory: [
-      { status: 'delivered', timestamp: '2024-01-15T16:30:00', note: 'Package delivered successfully', updatedBy: 'system' },
-      { status: 'shipped', timestamp: '2024-01-14T10:15:00', note: 'Out for delivery', updatedBy: 'John Smith' },
-      { status: 'processing', timestamp: '2024-01-13T14:20:00', note: 'Order is being prepared', updatedBy: 'Sarah Johnson' },
-      { status: 'pending', timestamp: '2024-01-13T10:30:00', note: 'Order received and awaiting processing', updatedBy: 'system' },
-    ],
-    orderDate: '2024-01-13',
-  },
-  'ORD-1235': {
-    id: 'ORD-1235',
-    customer: {
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-      phone: '+1 (555) 234-5678',
-      address: '456 Oak Ave, Los Angeles, CA 90001',
-    },
-    items: [
-      { productName: 'Laptop Stand', quantity: 1, unitPrice: 45.00 },
-      { productName: 'Wireless Mouse', quantity: 2, unitPrice: 29.99 },
-    ],
-    status: 'pending',
-    statusHistory: [
-      { status: 'pending', timestamp: '2024-01-15T09:45:00', note: 'Order received and awaiting processing', updatedBy: 'system' },
-    ],
-    orderDate: '2024-01-15',
-  },
-};
+import { formatCents } from '@/utils/currency';
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -141,8 +98,6 @@ export default function OrderDetailPage() {
             customer={{
               name: order.customerName,
               email: order.customerEmail,
-              phone: '', // Not in schema
-              address: '', // Not in schema
             }}
             orderDate={order.orderDate}
           />
@@ -178,10 +133,10 @@ export default function OrderDetailPage() {
                         {item.quantity}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        ${(item.unitPrice / 100).toFixed(2)}
+                        ${formatCents(item.unitPrice)}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-foreground">
-                        ${((item.quantity * item.unitPrice) / 100).toFixed(2)}
+                        ${formatCents(item.quantity * item.unitPrice)}
                       </td>
                     </tr>
                   ))}
