@@ -1,12 +1,15 @@
 import { configureStore } from "@reduxjs/toolkit";
+import { orderApi } from "./api/orderApi";
 
 export const makeStore = () => {
   return configureStore({
-    reducer: {},
+    reducer: {
+      [orderApi.reducerPath]: orderApi.reducer,
+    },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         serializableCheck: false,
-      }),
+      }).concat(orderApi.middleware),
   });
 };
 
