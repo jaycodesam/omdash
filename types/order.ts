@@ -14,7 +14,7 @@ export interface OrderItem {
 
 export interface StatusHistory {
   status: OrderStatus;
-  timestamp: string;
+  timestamp: string; // ISO datetime
   updatedBy: string;
 }
 
@@ -23,6 +23,7 @@ export interface Order {
   customerId: string;
   customerName: string;
   customerEmail: string;
+  orderDate: string; // ISO date
   status: OrderStatus;
   items: OrderItem[];
   totalAmount: number;
