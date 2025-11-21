@@ -11,8 +11,10 @@ const getOrderByIdEndpoint = orderApi.injectEndpoints({
         const result = orderSchema.safeParse(response);
 
         if (!result.success) {
+          // TODO:
           console.error('Invalid API response:', result.error);
           throw new Error('Invalid order data from API');
+          // add external monitoring
         }
 
         return result.data;
