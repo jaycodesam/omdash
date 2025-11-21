@@ -8,8 +8,9 @@ import { CustomerDetails } from '@/components/CustomerDetails';
 import { UpdateOrderStatus } from '@/components/UpdateOrderStatus';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useGetOrderByIdQuery } from '@/store/api';
 
-// Mock data - in a real app, this would come from an API
+// Mock data - DEPRECATED: Now using RTK Query
 const mockOrderData = {
   'ORD-1234': {
     id: 'ORD-1234',
@@ -56,8 +57,45 @@ const mockOrderData = {
 export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.id as string;
-  const order = mockOrderData[orderId as keyof typeof mockOrderData];
 
+  // RTK Query hook - replaces mock data
+  const { data: order, error, isLoading } = useGetOrderByIdQuery(orderId);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Loading...">
+        <Card>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading order details...</p>
+          </div>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    const isNotFound = 'status' in error && error.status === 404;
+
+    return (
+      <DashboardLayout title={isNotFound ? "Order Not Found" : "Error"}>
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">
+              {isNotFound ? 'Order not found' : 'Failed to load order'}
+            </p>
+            <Link href="/dashboard/orders">
+              <Button>Back to Orders</Button>
+            </Link>
+          </div>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+
+  // No data (shouldn't happen, but type safety)
   if (!order) {
     return (
       <DashboardLayout title="Order Not Found">
@@ -99,7 +137,15 @@ export default function OrderDetailPage() {
         {/* Left Column - Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Customer Details */}
-          <CustomerDetails customer={order.customer} orderDate={order.orderDate} />
+          <CustomerDetails
+            customer={{
+              name: order.customerName,
+              email: order.customerEmail,
+              phone: '', // Not in schema
+              address: '', // Not in schema
+            }}
+            orderDate={order.orderDate}
+          />
 
           {/* Itemized List */}
           <Card>
@@ -123,8 +169,8 @@ export default function OrderDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-border-light">
-                  {order.items.map((item, index) => (
-                    <tr key={index}>
+                  {order.items.map((item) => (
+                    <tr key={item.id}>
                       <td className="px-4 py-3 text-sm text-foreground font-medium">
                         {item.productName}
                       </td>
@@ -132,10 +178,10 @@ export default function OrderDetailPage() {
                         {item.quantity}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        ${item.unitPrice.toFixed(2)}
+                        ${(item.unitPrice / 100).toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-foreground">
-                        ${(item.quantity * item.unitPrice).toFixed(2)}
+                        ${((item.quantity * item.unitPrice) / 100).toFixed(2)}
                       </td>
                     </tr>
                   ))}
