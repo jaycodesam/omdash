@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { orderApi } from "./api/orderApi";
+import { orderApi } from "./api";
 
 export const makeStore = () => {
   return configureStore({
