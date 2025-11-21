@@ -26,5 +26,10 @@
     "msw": "^2.12.2",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
