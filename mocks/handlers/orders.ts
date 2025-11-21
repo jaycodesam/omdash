@@ -2,6 +2,11 @@ import { http, HttpResponse } from "msw";
 import { mockOrders, getOrderById, filterOrders } from "@/mocks/data/orders";
 import { orderSchema } from "@/schemas/order";
 import { z } from "zod";
+import {
+  type OrderStatus,
+  validateTransition,
+  STATUS_METADATA,
+} from "@/utils/orderStatus";
 
 /**
  * GET /api/orders - support query params, status, search, dateFrom, dateTo, minAmount, maxAmount
@@ -160,8 +165,95 @@ const getOrderByIdHandler = http.get("/api/orders/:id", ({ params }) => {
 
 // PATCH /api/orders/:id/status
 const updateOrderStatus = http.patch("/api/orders/:id/status", async ({ params, request }) => {
-  const body = (await request.json()) as Record<string, unknown>;
-  return HttpResponse.json({ id: params.id, ...body });
+  console.log('[MSW] PATCH /api/orders/:id/status handler called!', { params, url: request.url });
+
+  const { id } = params;
+
+  // basic validation
+  if (typeof id !== 'string') {
+    console.error('[MSW] Invalid order ID');
+    return HttpResponse.json(
+      { error: 'Invalid order ID' },
+      { status: 400 }
+    );
+  }
+
+  // request body
+  const body = await request.json() as { status: string; note?: string };
+  const newStatus = body.status;
+  const note = body.note || '';
+
+  console.log('[MSW] PATCH /api/orders/:id/status', { id, currentStatus: '?', newStatus, note });
+
+  // order
+  const orderIndex = mockOrders.findIndex(order => order.id === id);
+
+  if (orderIndex === -1) {
+    console.error('[MSW] Order not found:', id);
+    return HttpResponse.json(
+      { error: 'Order not found' },
+      { status: 404 }
+    );
+  }
+
+  const order = mockOrders[orderIndex];
+  const currentStatus = order.status;
+
+  console.log('[MSW] Current status:', currentStatus, '→ New status:', newStatus);
+
+  // status transition
+  const validation = validateTransition(
+    currentStatus as OrderStatus,
+    newStatus as OrderStatus
+  );
+
+  if (!validation.valid) {
+    console.error('[MSW] Invalid status transition:', validation.error);
+    return HttpResponse.json(
+      {
+        error: validation.error,
+        currentStatus,
+        requestedStatus: newStatus,
+      },
+      { status: 400 }
+    );
+  }
+
+  // update order status
+  const updatedOrder = {
+    ...order,
+    status: newStatus as OrderStatus,
+    statusHistory: [
+      {
+        status: newStatus as OrderStatus,
+        timestamp: new Date().toISOString(),
+        updatedBy: 'system', //
+      },
+      ...order.statusHistory,
+    ],
+  };
+
+  //mock data update
+  mockOrders[orderIndex] = updatedOrder;
+
+  console.log('[MSW] Order status updated successfully:', {
+    orderId: id,
+    oldStatus: currentStatus,
+    newStatus,
+  });
+
+  // validate
+  const validationResult = orderSchema.safeParse(updatedOrder);
+
+  if (!validationResult.success) {
+    console.error('[MSW] Updated order validation failed:', validationResult.error);
+    return HttpResponse.json(
+      { error: 'Invalid order data after update' },
+      { status: 500 }
+    );
+  }
+
+  return HttpResponse.json(validationResult.data);
 });
 
 // PATCH /api/orders/bulk-status

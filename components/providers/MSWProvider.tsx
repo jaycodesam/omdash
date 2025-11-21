@@ -10,9 +10,10 @@ export function MSWProvider({ children }: { children: React.ReactNode }) {
       if (process.env.NODE_ENV === 'development') {
         const { worker } = await import('@/mocks/browser');
         await worker.start({
-          onUnhandledRequest: 'bypass', // Don't warn about unhandled requests
+          onUnhandledRequest: 'warn', // Warn about unhandled requests for debugging
         });
         console.log('[MSW] Mocking enabled.');
+        console.log('[MSW] Registered handlers:', worker.listHandlers());
         setMswReady(true);
       } else {
         setMswReady(true);
