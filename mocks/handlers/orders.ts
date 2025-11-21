@@ -47,22 +47,20 @@ const getOrders = http.get("/api/orders", ({ request }) => {
     console.log('[MSW] Cursor index:', cursorIndex, 'Total filtered:', filtered.length);
 
     if (cursorIndex === -1) {
-      // invalid or filtered out
-      console.error('[MSW] Invalid cursor:', cursor);
-      return HttpResponse.json(
-        { error: "Invalid cursor" },
-        { status: 400 }
-      );
-    }
-
-    if (direction === 'after') {
-      // items after cursor
-      startIndex = cursorIndex + 1;
+      // Invalid cursor - likely due to filter change
+      // Return first page instead of error for better UX
+      console.warn('[MSW] Invalid cursor (likely filter changed), returning first page:', cursor);
+      startIndex = 0;
     } else {
-      // items before cursor (backwards)
-      startIndex = Math.max(0, cursorIndex - limit);
+      if (direction === 'after') {
+        // items after cursor
+        startIndex = cursorIndex + 1;
+      } else {
+        // items before cursor (backwards)
+        startIndex = Math.max(0, cursorIndex - limit);
+      }
+      console.log('[MSW] Start index:', startIndex);
     }
-    console.log('[MSW] Start index:', startIndex);
   }
 
   // paginated data
