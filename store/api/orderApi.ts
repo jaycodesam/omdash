@@ -1,10 +1,9 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQuery } from './baseQuery';
 
 export const orderApi = createApi({
   reducerPath: 'orderApi',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
-  tagTypes: ['Order'],
-  endpoints: () => ({}),
+  baseQuery,
+  tagTypes: ['Order', 'Metrics'],
+  endpoints: () => ({}), // endpoints will be injected
 });
-
-export const {} = orderApi;
