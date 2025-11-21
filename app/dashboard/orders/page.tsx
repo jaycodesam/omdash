@@ -4,10 +4,11 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, Badge, Button, Input, Table } from '@/components/ui';
 import { OrderMetrics } from '@/components/OrderMetrics';
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGetOrdersQuery } from '@/store/api';
 import type { Order as OrderType } from '@/types/order';
+import { centsToAmount, calculateTax, formatCents } from '@/utils/currency';
 
 // Mock data
 const mockOrders = [
@@ -50,55 +51,96 @@ type Order = {
 
 export default function OrdersPage() {
   const router = useRouter();
+
+  // Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+
+  // Cursor pagination state
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [direction, setDirection] = useState<'after' | 'before'>('after');
+  const [limit] = useState(10);
+
+  // Selection state
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [showBulkStatusUpdate, setShowBulkStatusUpdate] = useState(false);
   const [bulkStatusValue, setBulkStatusValue] = useState('');
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
-  // RTK Query - Get orders with filters
-  const { data: ordersData, error, isLoading } = useGetOrdersQuery({
+  // Reset cursor when filters change
+  useEffect(() => {
+    setCursor(undefined);
+    setDirection('after');
+  }, [statusFilter, searchQuery, startDate, endDate, minAmount, maxAmount]);
+
+  // RTK Query - Get orders with cursor pagination + filters
+  const { data: response, error, isLoading } = useGetOrdersQuery({
+    cursor,
+    limit,
+    direction,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     search: searchQuery || undefined,
     dateFrom: startDate || undefined,
     dateTo: endDate || undefined,
-    minAmount: minAmount ? Number(minAmount) * 100 : undefined, // Convert to cents
-    maxAmount: maxAmount ? Number(maxAmount) * 100 : undefined, // Convert to cents
+    minAmount: minAmount ? Number(minAmount) * 100 : undefined,
+    maxAmount: maxAmount ? Number(maxAmount) * 100 : undefined,
   });
 
   // Transform Order[] to table format with calculated fields
   const orders = useMemo(() => {
-    if (!ordersData) return [];
+    if (!response?.data) return [];
 
-    return ordersData.map((order) => {
-      const subtotal = order.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-      const tax = subtotal * 0.13; // 13% tax
-      const discount = 0; // Not in schema
-      const amount = subtotal + tax - discount;
+    return response.data.map((order) => {
+      // Calculate amounts in cents
+      const subtotalCents = order.items.reduce(
+        (sum, item) => sum + (item.quantity * item.unitPrice),
+        0
+      );
+      const taxCents = calculateTax(subtotalCents, 0.13);
+      const discountCents = 0; // Not in schema
+      const totalCents = subtotalCents + taxCents - discountCents;
 
       return {
         id: order.id,
         customer: order.customerName,
         email: order.customerEmail,
-        subtotal: subtotal / 100, // Convert cents to dollars
-        discount: discount / 100,
-        tax: tax / 100,
-        amount: amount / 100,
+        subtotal: centsToAmount(subtotalCents),
+        discount: centsToAmount(discountCents),
+        tax: centsToAmount(taxCents),
+        amount: centsToAmount(totalCents),
         status: order.status,
         date: order.orderDate,
-        createdAt: order.orderDate, // Use orderDate as createdAt
+        createdAt: order.orderDate,
         items: order.items.length,
       };
     });
-  }, [ordersData]);
+  }, [response]);
 
   // API handles all filtering, no need for client-side filtering
   const filteredOrders = orders;
+
+  // Pagination info
+  const pageInfo = response?.pageInfo;
+  const cursors = response?.cursors;
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    if (cursors?.next && pageInfo?.hasNextPage) {
+      setCursor(cursors.next);
+      setDirection('after');
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (cursors?.previous && pageInfo?.hasPreviousPage) {
+      setCursor(cursors.previous);
+      setDirection('before');
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -514,20 +556,25 @@ export default function OrdersPage() {
         {/* Results count and Pagination */}
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-gray-600">
-            Showing {filteredOrders.length} orders
+            Showing {filteredOrders.length} orders per page
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-600">
-              Page 1 of 1
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled>
-                Previous
-              </Button>
-              <Button variant="outline" size="sm" disabled>
-                Next
-              </Button>
-            </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pageInfo?.hasPreviousPage || isLoading}
+              onClick={handlePreviousPage}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pageInfo?.hasNextPage || isLoading}
+              onClick={handleNextPage}
+            >
+              Next
+            </Button>
           </div>
         </div>
 
