@@ -1,31 +1,12 @@
-export type OrderStatus =
-  | "pending"
-  | "processing"
-  | "shipped"
-  | "delivered"
-  | "cancelled";
+import { z } from "zod";
+import {
+  orderStatusSchema,
+  orderItemSchema,
+  statusHistorySchema,
+  orderSchema,
+} from "@/schemas/order";
 
-export interface OrderItem {
-  id: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-}
-
-export interface StatusHistory {
-  status: OrderStatus;
-  timestamp: string; // ISO datetime
-  updatedBy: string;
-}
-
-export interface Order {
-  id: string;
-  customerId: string;
-  customerName: string;
-  customerEmail: string;
-  orderDate: string; // ISO date
-  status: OrderStatus;
-  items: OrderItem[];
-  totalAmount: number;
-  statusHistory: StatusHistory[];
-}
+export type OrderStatus = z.infer<typeof orderStatusSchema>;
+export type OrderItem = z.infer<typeof orderItemSchema>;
+export type StatusHistory = z.infer<typeof statusHistorySchema>;
+export type Order = z.infer<typeof orderSchema>;
