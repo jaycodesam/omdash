@@ -15,7 +15,12 @@ import { z } from "zod";
 const getOrders = http.get("/api/orders", ({ request }) => {
   const url = new URL(request.url);
 
-  // query parameters
+  // pagination params
+  const cursor = url.searchParams.get('cursor') || undefined;
+  const limit = Number(url.searchParams.get('limit')) || 20;
+  const direction = url.searchParams.get('direction') || 'after'; // 'after' or 'before'
+
+  // filters
   const filters = {
     status: url.searchParams.get('status') || undefined,
     search: url.searchParams.get('search') || undefined,
@@ -29,12 +34,60 @@ const getOrders = http.get("/api/orders", ({ request }) => {
       : undefined,
   };
 
-  // filter - mock
+  // do filtering first
   const filtered = filterOrders(filters);
+
+  // cursor position
+  let startIndex = 0;
+  if (cursor) {
+    const cursorIndex = filtered.findIndex((order) => order.id === cursor);
+
+    if (cursorIndex === -1) {
+      // invalid or filtered out
+      return HttpResponse.json(
+        { error: "Invalid cursor" },
+        { status: 400 }
+      );
+    }
+
+    if (direction === 'after') {
+      // items after cursor
+      startIndex = cursorIndex + 1;
+    } else {
+      // items before cursor (backwards)
+      startIndex = Math.max(0, cursorIndex - limit);
+    }
+  }
+
+  // paginated data
+  let paginatedData: typeof filtered;
+
+  if (direction === 'after' || !cursor) {
+    // forward
+    paginatedData = filtered.slice(startIndex, startIndex + limit);
+  } else {
+    // backward
+    paginatedData = filtered.slice(startIndex, startIndex + limit);
+  }
+
+  // cursors and hasMore flags
+  const hasNextPage = cursor && direction === 'after'
+    ? startIndex + limit < filtered.length
+    : !cursor && paginatedData.length === limit && startIndex + limit < filtered.length;
+
+  const hasPreviousPage = startIndex > 0;
+
+  const nextCursor = hasNextPage && paginatedData.length > 0
+    ? paginatedData[paginatedData.length - 1].id
+    : null;
+
+  const previousCursor = hasPreviousPage && paginatedData.length > 0
+    ? paginatedData[0].id
+    : null;
 
   // validate
   const ordersArraySchema = z.array(orderSchema);
-  const validationResult = ordersArraySchema.safeParse(filtered);
+  const validationResult = ordersArraySchema.safeParse(paginatedData);
 
   if (!validationResult.success) {
     console.error("Mock data validation failed:", validationResult.error);
@@ -43,8 +96,19 @@ const getOrders = http.get("/api/orders", ({ request }) => {
       { status: 500 }
     );
   }
-
-  return HttpResponse.json(validationResult.data);
+  return HttpResponse.json({
+    data: validationResult.data,
+    pageInfo: {
+      hasNextPage,
+      hasPreviousPage,
+      startCursor: paginatedData.length > 0 ? paginatedData[0].id : null,
+      endCursor: paginatedData.length > 0 ? paginatedData[paginatedData.length - 1].id : null,
+    },
+    cursors: {
+      next: nextCursor,
+      previous: previousCursor,
+    },
+  });
 });
 
 // GET /api/orders/:id
