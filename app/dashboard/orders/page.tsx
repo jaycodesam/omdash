@@ -4,8 +4,10 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, Badge, Button, Input, Table } from '@/components/ui';
 import { OrderMetrics } from '@/components/OrderMetrics';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useGetOrdersQuery } from '@/store/api';
+import type { Order as OrderType } from '@/types/order';
 
 // Mock data
 const mockOrders = [
@@ -59,23 +61,72 @@ export default function OrdersPage() {
   const [bulkStatusValue, setBulkStatusValue] = useState('');
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
-  const filteredOrders = mockOrders.filter((order) => {
-    const matchesSearch =
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-
-    const matchesDateRange =
-      (!startDate || order.date >= startDate) &&
-      (!endDate || order.date <= endDate);
-
-    const matchesAmountRange =
-      (!minAmount || order.amount >= parseFloat(minAmount)) &&
-      (!maxAmount || order.amount <= parseFloat(maxAmount));
-
-    return matchesSearch && matchesStatus && matchesDateRange && matchesAmountRange;
+  // RTK Query - Get orders with filters
+  const { data: ordersData, error, isLoading } = useGetOrdersQuery({
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    search: searchQuery || undefined,
+    dateFrom: startDate || undefined,
+    dateTo: endDate || undefined,
+    minAmount: minAmount ? Number(minAmount) * 100 : undefined, // Convert to cents
+    maxAmount: maxAmount ? Number(maxAmount) * 100 : undefined, // Convert to cents
   });
+
+  // Transform Order[] to table format with calculated fields
+  const orders = useMemo(() => {
+    if (!ordersData) return [];
+
+    return ordersData.map((order) => {
+      const subtotal = order.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+      const tax = subtotal * 0.13; // 13% tax
+      const discount = 0; // Not in schema
+      const amount = subtotal + tax - discount;
+
+      return {
+        id: order.id,
+        customer: order.customerName,
+        email: order.customerEmail,
+        subtotal: subtotal / 100, // Convert cents to dollars
+        discount: discount / 100,
+        tax: tax / 100,
+        amount: amount / 100,
+        status: order.status,
+        date: order.orderDate,
+        createdAt: order.orderDate, // Use orderDate as createdAt
+        items: order.items.length,
+      };
+    });
+  }, [ordersData]);
+
+  // API handles all filtering, no need for client-side filtering
+  const filteredOrders = orders;
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Orders">
+        <Card>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading orders...</p>
+          </div>
+        </Card>
+      </DashboardLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <DashboardLayout title="Orders">
+        <Card>
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">Failed to load orders</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
+        </Card>
+      </DashboardLayout>
+    );
+  }
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -463,7 +514,7 @@ export default function OrdersPage() {
         {/* Results count and Pagination */}
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-gray-600">
-            Showing {filteredOrders.length} of {mockOrders.length} orders
+            Showing {filteredOrders.length} orders
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-gray-600">
