@@ -1,22 +1,18 @@
 'use client';
 
 import { Card, Badge } from './ui';
+import {
+  type OrderStatus,
+  getAllowedTransitions,
+  STATUS_METADATA,
+  isTerminalStatus,
+} from '@/utils/orderStatus';
 
 interface UpdateOrderStatusProps {
   currentStatus: string;
   orderId: string;
   onStatusUpdate?: (newStatus: string, note: string) => void;
 }
-
-const statusVariants: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
-  delivered: 'success',
-  shipped: 'info',
-  pending: 'warning',
-  processing: 'info',
-  cancelled: 'danger',
-};
-
-const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
 const getStatusButtonClass = (variant: string, isSelected: boolean): string => {
   if (!isSelected) {
@@ -37,26 +33,30 @@ const getStatusButtonClass = (variant: string, isSelected: boolean): string => {
   }
 };
 
-const getNextStatuses = (currentStatus: string): string[] => {
-  switch (currentStatus) {
-    case 'pending':
-      return ['processing', 'cancelled'];
-    case 'processing':
-      return ['shipped', 'cancelled'];
-    case 'shipped':
-      return ['delivered'];
-    case 'delivered':
-    case 'cancelled':
-      return [];
-    default:
-      return [];
-  }
-};
-
 export function UpdateOrderStatus({ currentStatus, orderId, onStatusUpdate }: UpdateOrderStatusProps) {
-  const nextStatuses = getNextStatuses(currentStatus);
+  // Get allowed transitions using centralized status manager
+  const allowedStatuses = getAllowedTransitions(currentStatus as OrderStatus);
 
-  if (nextStatuses.length === 0) return null;
+  // Don't show the card if no transitions are allowed (terminal state)
+  if (allowedStatuses.length === 0) {
+    if (isTerminalStatus(currentStatus as OrderStatus)) {
+      return (
+        <Card>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Update Order Status</h3>
+          <div className="mb-4">
+            <label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">Current Status</label>
+            <Badge variant={STATUS_METADATA[currentStatus as OrderStatus]?.color || 'info'}>
+              {STATUS_METADATA[currentStatus as OrderStatus]?.label.toUpperCase() || currentStatus.toUpperCase()}
+            </Badge>
+          </div>
+          <p className="text-sm text-gray-500 italic">
+            This order is in a terminal state. No further status changes are allowed.
+          </p>
+        </Card>
+      );
+    }
+    return null;
+  }
 
   const handleStatusClick = (newStatus: string) => {
     if (onStatusUpdate) {
@@ -64,36 +64,48 @@ export function UpdateOrderStatus({ currentStatus, orderId, onStatusUpdate }: Up
     }
   };
 
+  const currentMetadata = STATUS_METADATA[currentStatus as OrderStatus];
+
   return (
     <Card>
       <h3 className="text-lg font-semibold text-foreground mb-4">Update Order Status</h3>
 
       <div className="mb-4">
         <label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">Current Status</label>
-        <Badge variant={statusVariants[currentStatus] || 'info'}>
-          {currentStatus.toUpperCase()}
-        </Badge>
+        <div className="space-y-2">
+          <Badge variant={currentMetadata?.color || 'info'}>
+            {currentMetadata?.label.toUpperCase() || currentStatus.toUpperCase()}
+          </Badge>
+          {currentMetadata?.description && (
+            <p className="text-xs text-gray-500">{currentMetadata.description}</p>
+          )}
+        </div>
       </div>
 
       <div>
         <label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
-          Change Status To
+          Available Status Transitions
         </label>
-        <div className="flex gap-2">
-          {nextStatuses.map((status) => {
-            const variant = statusVariants[status] || 'info';
+        <div className="flex flex-wrap gap-2">
+          {allowedStatuses.map((status) => {
+            const metadata = STATUS_METADATA[status];
+            const variant = metadata.color;
 
             return (
               <button
                 key={status}
                 onClick={() => handleStatusClick(status)}
                 className={`px-4 py-2 text-sm font-medium rounded border transition-colors ${getStatusButtonClass(variant, true)}`}
+                title={metadata.description}
               >
-                {capitalize(status)}
+                {metadata.label}
               </button>
             );
           })}
         </div>
+        <p className="text-xs text-gray-400 mt-2">
+          Only valid status transitions are shown based on current order state.
+        </p>
       </div>
     </Card>
   );
