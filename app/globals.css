@@ -1,8 +1,44 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Clarity Design Color Palette */
+  --background: #fafafa;
+  --foreground: #565656;
+
+  /* Primary Colors */
+  --primary: #0072a3;
+  --primary-dark: #005f86;
+  --primary-light: #49afd9;
+
+  /* Grays */
+  --gray-50: #fafafa;
+  --gray-100: #e8e8e8;
+  --gray-200: #cccccc;
+  --gray-300: #b3b3b3;
+  --gray-400: #9a9a9a;
+  --gray-500: #737373;
+  --gray-600: #565656;
+  --gray-700: #404040;
+  --gray-800: #2d2d2d;
+  --gray-900: #1b1b1b;
+
+  /* Semantic Colors */
+  --success: #60b515;
+  --success-light: #92cf5c;
+  --warning: #ffb92e;
+  --warning-light: #fdd006;
+  --danger: #e62700;
+  --danger-light: #ff5050;
+  --info: #0094d2;
+  --info-light: #49afd9;
+
+  /* UI Elements */
+  --border: #cccccc;
+  --border-light: #e8e8e8;
+  --card-bg: #ffffff;
+  --hover-bg: #f0f0f0;
+  --sidebar-bg: #313131;
+  --sidebar-active: #0072a3;
 }
 
 @theme inline {
@@ -10,17 +46,59 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Clarity Design Theme */
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+
+  --color-gray-50: var(--gray-50);
+  --color-gray-100: var(--gray-100);
+  --color-gray-200: var(--gray-200);
+  --color-gray-300: var(--gray-300);
+  --color-gray-400: var(--gray-400);
+  --color-gray-500: var(--gray-500);
+  --color-gray-600: var(--gray-600);
+  --color-gray-700: var(--gray-700);
+  --color-gray-800: var(--gray-800);
+  --color-gray-900: var(--gray-900);
+
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-danger: var(--danger);
+  --color-danger-light: var(--danger-light);
+  --color-info: var(--info);
+  --color-info-light: var(--info-light);
+
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-card: var(--card-bg);
+  --color-hover: var(--hover-bg);
+  --color-sidebar: var(--sidebar-bg);
+  --color-sidebar-active: var(--sidebar-active);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1b1b1b;
+    --foreground: #e8e8e8;
+    --card-bg: #2d2d2d;
+    --hover-bg: #404040;
+    --border: #565656;
+    --border-light: #404040;
   }
+}
+
+html {
+  overflow-y: scroll;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }
