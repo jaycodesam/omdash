@@ -1,4 +1,6 @@
 import { http, HttpResponse } from "msw";
+import { mockOrders, getOrderById, filterOrders } from "@/mocks/data/orders";
+import { orderSchema } from "@/schemas/order";
 
 /**
  * As mentioned
@@ -17,7 +19,36 @@ export const orderHandlers = [
 
   // GET /api/orders/:id
   http.get("/api/orders/:id", ({ params }) => {
-    return HttpResponse.json({ id: params.id });
+    const { id } = params;
+
+    if (typeof id !== "string") {
+      return HttpResponse.json(
+        { error: "Invalid order ID" },
+        { status: 400 }
+      );
+    }
+
+    const order = getOrderById(id);
+
+    if (!order) {
+      return HttpResponse.json(
+        { error: "Order not found" },
+        { status: 404 }
+      );
+    }
+
+    // Validate with Zod schema
+    const validationResult = orderSchema.safeParse(order);
+
+    if (!validationResult.success) {
+      console.error("Mock data validation failed:", validationResult.error);
+      return HttpResponse.json(
+        { error: "Invalid order data", details: validationResult.error.format() },
+        { status: 500 }
+      );
+    }
+
+    return HttpResponse.json(validationResult.data);
   }),
 
   // PATCH /api/orders/:id/status
