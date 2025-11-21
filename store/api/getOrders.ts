@@ -1,43 +1,51 @@
 import { orderApi } from './orderApi';
 import { orderSchema } from '@/schemas/order';
-import type { Order } from '@/types/order';
 import { z } from 'zod';
-
-export interface GetOrdersParams {
-  status?: string;
-  search?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  minAmount?: number;
-  maxAmount?: number;
-}
+import type { GetOrdersParams, GetOrdersResponse } from '@/types/api';
 
 const getOrdersEndpoint = orderApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
-    getOrders: builder.query<Order[], GetOrdersParams | void>({
+    getOrders: builder.query<GetOrdersResponse, GetOrdersParams | void>({
       query: (params) => ({
         url: '/orders',
         params: params || {},
       }),
 
       transformResponse: (response: unknown) => {
+        // structure validation
+        if (
+          !response ||
+          typeof response !== 'object' ||
+          !('data' in response) ||
+          !Array.isArray((response as any).data)
+        ) {
+          console.error('Invalid API response structure:', response);
+          throw new Error('Invalid response structure from API');
+        }
+
+        const typedResponse = response as GetOrdersResponse;
+
+        // validate
         const ordersArraySchema = z.array(orderSchema);
-        const result = ordersArraySchema.safeParse(response);
+        const result = ordersArraySchema.safeParse(typedResponse.data);
 
         if (!result.success) {
           console.error('Invalid API response:', result.error);
           throw new Error('Invalid orders data from API');
-          // third party monitoring
         }
 
-        return result.data;
+        return {
+          data: result.data,
+          pageInfo: typedResponse.pageInfo,
+          cursors: typedResponse.cursors,
+        };
       },
 
       providesTags: (result) =>
-        result
+        result?.data
           ? [
-              ...result.map(({ id }) => ({ type: 'Order' as const, id })),
+              ...result.data.map(({ id }) => ({ type: 'Order' as const, id })),
               { type: 'Order', id: 'LIST' },
             ]
           : [{ type: 'Order', id: 'LIST' }],
