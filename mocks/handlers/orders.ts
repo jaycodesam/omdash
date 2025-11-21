@@ -1,6 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { mockOrders, getOrderById, filterOrders } from "@/mocks/data/orders";
 import { orderSchema } from "@/schemas/order";
+import { z } from "zod";
 
 /**
  * GET /api/orders - support query params, status, search, dateFrom, dateTo, minAmount, maxAmount
@@ -11,8 +12,39 @@ import { orderSchema } from "@/schemas/order";
  */
 
 // GET /api/orders
-const getOrders = http.get("/api/orders", () => {
-  return HttpResponse.json([]);
+const getOrders = http.get("/api/orders", ({ request }) => {
+  const url = new URL(request.url);
+
+  // query parameters
+  const filters = {
+    status: url.searchParams.get('status') || undefined,
+    search: url.searchParams.get('search') || undefined,
+    dateFrom: url.searchParams.get('dateFrom') || undefined,
+    dateTo: url.searchParams.get('dateTo') || undefined,
+    minAmount: url.searchParams.get('minAmount')
+      ? Number(url.searchParams.get('minAmount'))
+      : undefined,
+    maxAmount: url.searchParams.get('maxAmount')
+      ? Number(url.searchParams.get('maxAmount'))
+      : undefined,
+  };
+
+  // filter - mock
+  const filtered = filterOrders(filters);
+
+  // validate
+  const ordersArraySchema = z.array(orderSchema);
+  const validationResult = ordersArraySchema.safeParse(filtered);
+
+  if (!validationResult.success) {
+    console.error("Mock data validation failed:", validationResult.error);
+    return HttpResponse.json(
+      { error: "Invalid orders data", details: validationResult.error.format() },
+      { status: 500 }
+    );
+  }
+
+  return HttpResponse.json(validationResult.data);
 });
 
 // GET /api/orders/:id
