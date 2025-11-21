@@ -3,6 +3,7 @@ import { orderSchema } from '@/schemas/order';
 import type { Order } from '@/types/order';
 
 const getOrderByIdEndpoint = orderApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     getOrderById: builder.query<Order, string>({
       query: (id) => `/orders/${id}`,
